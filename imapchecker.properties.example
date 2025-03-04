@@ -1,6 +1,0 @@
-username=username
-password=password
-hostname=imap.server
-ntfytoken=token
-ntfyurl=https://ntfy.sh/topic
-filterfile=filters.txt

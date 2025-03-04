@@ -17,14 +17,19 @@ import java.util.Optional;
 
 public class CheckMessageCountListener implements MessageCountListener {
 
+    private String threadname;
     private Folder junkfolder;
     private String ntfytoken;
     private String ntfyurl;
+    private FilterLoader filterLoader;
 
-    public CheckMessageCountListener(Folder junkfolder, String ntfytoken, String ntfyurl) {
+    public CheckMessageCountListener(String threadname, Folder junkfolder, String ntfytoken, String ntfyurl, String filterfilename) {
+        this.threadname = threadname;
         this.junkfolder = junkfolder;
         this.ntfytoken = ntfytoken;
         this.ntfyurl = ntfyurl;
+
+        this.filterLoader = new FilterLoader(filterfilename, 600);
     }
 
     @Override
@@ -32,34 +37,37 @@ public class CheckMessageCountListener implements MessageCountListener {
         Message[] messages = messageCountEvent.getMessages();
 
         try {
+            filterLoader.tryLoad();
             for (Message m : messages) {
-                System.out.println("=====");
-                System.out.println("ID: " + m.getMessageNumber());
-                System.out.println("Date: " + m.getSentDate());
-                System.out.println("Subject: " + m.getSubject());
+                log("=====");
+                log("ID: " + m.getMessageNumber());
+                log("Date: " + m.getSentDate());
+                log("Subject: " + m.getSubject());
 
                 if(messageMatches(m)) {
-                    System.out.println("Spam detected!");
+                    log("Spam detected!");
                     m.getFolder().copyMessages(new Message[]{ m }, junkfolder);
                     m.setFlag(Flags.Flag.DELETED, true);
                     m.getFolder().expunge();
                 }
                 else {
-                    System.out.println("No spam detected!");
+                    log("No spam detected!");
 
-                    Optional<Address> from = Arrays.stream(m.getFrom()).findFirst();
-                    String sender = from.isPresent() ? from.get().toString() : "Unknown sender";
-                    String body = getBodyFromMessageContent(m.getContent());
-                    body = m.getSubject() + "\n\n" + body.substring(0, Math.min(body.length(), 100));
+                    if(!this.ntfytoken.isEmpty()) {
+                        Optional<Address> from = Arrays.stream(m.getFrom()).findFirst();
+                        String sender = from.isPresent() ? from.get().toString() : "Unknown sender";
+                        String body = getBodyFromMessageContent(m.getContent());
+                        body = m.getSubject() + "\n\n" + body.substring(0, Math.min(body.length(), 100));
 
-                    this.sendNotification(sender, body);
+                        this.sendNotification(sender, body);
+                    }
                     m.setFlag(Flags.Flag.SEEN, false);
                 }
 
             }
         }
         catch(MessagingException | IOException e) {
-            System.err.println(e.getMessage());
+            log(e.getMessage());
             throw new RuntimeException(e);
         }
     }
@@ -72,10 +80,10 @@ public class CheckMessageCountListener implements MessageCountListener {
     private void sendNotification(String sender, String body) {
 
         try {
-            System.out.println("Sending notification");
+            log("Sending notification");
             HttpClient client = HttpClient.newHttpClient();
             HttpRequest request = HttpRequest
-                    .newBuilder(new URI("https://ntfy.sh/fluff-will-notify-you"))
+                    .newBuilder(new URI(ntfyurl))
                     .header("Authorization", "Bearer " + ntfytoken)
                     .header("Title", sender)
                     .header("Tags", "incoming_envelope")
@@ -84,7 +92,7 @@ public class CheckMessageCountListener implements MessageCountListener {
             client.send(request, HttpResponse.BodyHandlers.ofString());
         }
         catch(InterruptedException | URISyntaxException | IOException e) {
-            System.err.println("Failed to send notification: " + e.getMessage());
+            log("Failed to send notification: " + e.getMessage());
         }
     }
 
@@ -122,7 +130,7 @@ public class CheckMessageCountListener implements MessageCountListener {
             Address[] tos = m.getAllRecipients();
             String subject = m.getSubject().toLowerCase();
 
-            for(Junkfilter f : Main.getFilters()) {
+            for(Junkfilter f : this.filterLoader.getFilters()) {
                 if(f.getMailField().equals(MailField.SUBJECT)) {
                     if(f.match(subject)) {
                         return true;
@@ -147,5 +155,10 @@ public class CheckMessageCountListener implements MessageCountListener {
             e.printStackTrace();
         }
         return false;
+    }
+
+    private void log(String msg) {
+        System.out.println(this.threadname + ": " + msg);
+
     }
 }
