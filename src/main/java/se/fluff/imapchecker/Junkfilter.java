@@ -48,4 +48,11 @@ public class Junkfilter {
         return m.matches();
     }
 
+    @Override
+    public String toString() {
+        return "Junkfilter{" +
+                "field=" + field +
+                ", pattern=" + pattern +
+                '}';
+    }
 }

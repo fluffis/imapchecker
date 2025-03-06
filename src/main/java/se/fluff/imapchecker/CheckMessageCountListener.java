@@ -17,11 +17,11 @@ import java.util.Optional;
 
 public class CheckMessageCountListener implements MessageCountListener {
 
-    private String threadname;
-    private Folder junkfolder;
-    private String ntfytoken;
-    private String ntfyurl;
-    private FilterLoader filterLoader;
+    private final String threadname;
+    private final Folder junkfolder;
+    private final String ntfytoken;
+    private final String ntfyurl;
+    private final FilterLoader filterLoader;
 
     public CheckMessageCountListener(String threadname, Folder junkfolder, String ntfytoken, String ntfyurl, String filterfilename) {
         this.threadname = threadname;
@@ -101,9 +101,7 @@ public class CheckMessageCountListener implements MessageCountListener {
         StringBuilder sb = new StringBuilder();
 
         try {
-
             if (content instanceof Multipart multipart) {
-
                 for (int i = 0; i < multipart.getCount(); i++) {
                     BodyPart bodyPart = multipart.getBodyPart(i);
                     if (bodyPart.getContentType().toLowerCase().startsWith("text/plain")) {
@@ -138,21 +136,21 @@ public class CheckMessageCountListener implements MessageCountListener {
                 }
                 else if(f.getMailField().equals(MailField.RECEIVER)) {
                     for(Address to : tos) {
-                        if(f.match(to.toString())) {
+                        if(f.match(to.toString().toLowerCase())) {
                             return true;
                         }
                     }
                 }
                 else if(f.getMailField().equals(MailField.SENDER)) {
                     for(Address from : froms) {
-                        if(f.match(from.toString())) {
+                        if(f.match(from.toString().toLowerCase())) {
                             return true;
                         }
                     }
                 }
             }
         } catch (MessagingException e) {
-            e.printStackTrace();
+            log(e.getMessage());
         }
         return false;
     }
