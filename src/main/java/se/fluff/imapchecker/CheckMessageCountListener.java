@@ -3,6 +3,7 @@ package se.fluff.imapchecker;
 import jakarta.mail.*;
 import jakarta.mail.event.MessageCountEvent;
 import jakarta.mail.event.MessageCountListener;
+import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
@@ -22,6 +23,7 @@ public class CheckMessageCountListener implements MessageCountListener {
     private final String ntfytoken;
     private final String ntfyurl;
     private final FilterLoader filterLoader;
+    private ChatGPTRunner gptRunner = null;
 
     public CheckMessageCountListener(String threadname, Folder junkfolder, String ntfytoken, String ntfyurl, String filterfilename) {
         this.threadname = threadname;
@@ -32,6 +34,11 @@ public class CheckMessageCountListener implements MessageCountListener {
         this.filterLoader = new FilterLoader(filterfilename, 600);
     }
 
+    public void loadAI(String token, String assistant) {
+        log("Loading ChatGPT");
+        this.gptRunner = new ChatGPTRunner(new ChatGPTClient(token, assistant));
+    }
+
     @Override
     public void messagesAdded(MessageCountEvent messageCountEvent) {
         Message[] messages = messageCountEvent.getMessages();
@@ -39,10 +46,18 @@ public class CheckMessageCountListener implements MessageCountListener {
         try {
             filterLoader.tryLoad();
             for (Message m : messages) {
-                log("=====");
-                log("ID: " + m.getMessageNumber());
-                log("Date: " + m.getSentDate());
-                log("Subject: " + m.getSubject());
+                StringBuilder sendstr = new StringBuilder();
+                Address[] froms = m.getFrom();
+                for(Address f : froms) {
+                    sendstr.append(f.toString().toLowerCase()).append("; ");
+                }
+                StringBuilder sb = new StringBuilder();
+                sb.append("=== Message ID ").append(m.getMessageNumber()).append(" ===\n");
+                sb.append("Date: ").append(m.getSentDate()).append("\n");
+                sb.append("Sender: ").append(sendstr).append("\n");
+                sb.append("Subject: ").append(m.getSubject()).append("\n");
+                sb.append("=== END ===");
+                log(sb.toString());
 
                 if(messageMatches(m)) {
                     log("Spam detected!");
@@ -57,9 +72,15 @@ public class CheckMessageCountListener implements MessageCountListener {
                         Optional<Address> from = Arrays.stream(m.getFrom()).findFirst();
                         String sender = from.isPresent() ? from.get().toString() : "Unknown sender";
                         String body = getBodyFromMessageContent(m.getContent());
-                        body = m.getSubject() + "\n\n" + body.substring(0, Math.min(body.length(), 100));
 
-                        this.sendNotification(sender, body);
+                        if(this.gptRunner != null && body.length() > 10) {
+                            log("GPT Client is enabled for this account and body is longer than 10 chars");
+                            String summary = gptRunner.run(body);
+                            this.sendNotification(sender, summary);
+                        }
+                        else {
+                            this.sendNotification(sender, body);
+                        }
                     }
                     m.setFlag(Flags.Flag.SEEN, false);
                 }
@@ -109,6 +130,9 @@ public class CheckMessageCountListener implements MessageCountListener {
                     } else if (bodyPart.getContentType().toLowerCase().startsWith("text/html")) {
                         Document doc = Jsoup.parse((String) bodyPart.getContent());
                         sb.append(doc);
+                    }
+                    else {
+                        System.out.println("Found multipart with content type " + bodyPart.getContentType().toLowerCase());
                     }
                 }
             } else {

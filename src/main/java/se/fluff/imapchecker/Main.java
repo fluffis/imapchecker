@@ -1,16 +1,20 @@
 package se.fluff.imapchecker;
 
 
+import org.json.JSONObject;
+
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 
 public class Main {
 
-    private static Properties settings = new Properties();
-    private static HashMap<String, String> accounts = new HashMap<>();
-    private static HashMap<String,Thread> threads = new HashMap<>();
+    private static final Properties settings = new Properties();
+    private static final HashMap<String,Thread> threads = new HashMap<>();
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException, InterruptedException {
 
         try(InputStream is = new FileInputStream("imapchecker.properties")) {
             settings.load(is);
@@ -20,7 +24,6 @@ public class Main {
         }
 
         for(Object account : settings.keySet()) {
-            accounts.put(account.toString(), settings.getProperty(account.toString()));
             ImapChecker ic = new ImapChecker(account.toString(), settings.getProperty(account.toString()));
             threads.put(account.toString(), new Thread(ic, account.toString()));
             threads.get(account.toString()).start();

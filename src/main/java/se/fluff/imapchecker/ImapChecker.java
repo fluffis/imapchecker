@@ -64,6 +64,11 @@ public class ImapChecker implements Runnable {
                     ntfyurl,
                     settings.getProperty("filterfile")
             );
+
+            if(!settings.getProperty("openaikey", "").isEmpty()) {
+                cmcl.loadAI(settings.getProperty("openaikey"), settings.getProperty("assistantid"));
+            }
+
             inbox.addMessageCountListener(cmcl);
             log("Unread count: " + inbox.getUnreadMessageCount());
             Message[] messages = inbox.search(new FlagTerm(new Flags(Flags.Flag.SEEN), false));
