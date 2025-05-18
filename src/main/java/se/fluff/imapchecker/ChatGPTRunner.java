@@ -4,6 +4,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 public class ChatGPTRunner {
 
@@ -29,6 +30,7 @@ public class ChatGPTRunner {
                     keeprunning = 100;
                 }
                 laststatus = runstatus.getString("status");
+                TimeUnit.SECONDS.sleep(5);
             }
 
             if(!"completed".equals(laststatus)) {
