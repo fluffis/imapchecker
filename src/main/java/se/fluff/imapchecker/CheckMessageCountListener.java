@@ -3,7 +3,6 @@ package se.fluff.imapchecker;
 import jakarta.mail.*;
 import jakarta.mail.event.MessageCountEvent;
 import jakarta.mail.event.MessageCountListener;
-import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
@@ -23,7 +22,7 @@ public class CheckMessageCountListener implements MessageCountListener {
     private final String ntfytoken;
     private final String ntfyurl;
     private final FilterLoader filterLoader;
-    private ChatGPTRunner gptRunner = null;
+    private ClaudeRunner claudeRunner = null;
 
     public CheckMessageCountListener(String threadname, Folder junkfolder, String ntfytoken, String ntfyurl, String filterfilename) {
         this.threadname = threadname;
@@ -34,9 +33,9 @@ public class CheckMessageCountListener implements MessageCountListener {
         this.filterLoader = new FilterLoader(filterfilename, 600);
     }
 
-    public void loadAI(String token, String assistant) {
-        log("Loading ChatGPT");
-        this.gptRunner = new ChatGPTRunner(new ChatGPTClient(token, assistant));
+    public void loadAI(String apiKey, String model, String workspaceId, String systemPrompt) {
+        log("Loading Claude");
+        this.claudeRunner = new ClaudeRunner(new ClaudeClient(apiKey, model, workspaceId), systemPrompt);
     }
 
     @Override
@@ -73,9 +72,9 @@ public class CheckMessageCountListener implements MessageCountListener {
                         String sender = from.isPresent() ? from.get().toString() : "Unknown sender";
                         String body = getBodyFromMessageContent(m.getContent());
 
-                        if(this.gptRunner != null && body.length() > 10) {
-                            log("GPT Client is enabled for this account and body is longer than 10 chars");
-                            String summary = gptRunner.run(body);
+                        if(this.claudeRunner != null && body.length() > 10) {
+                            log("Claude is enabled for this account and body is longer than 10 chars");
+                            String summary = claudeRunner.run(body);
                             this.sendNotification(sender, summary);
                         }
                         else {

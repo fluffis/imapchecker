@@ -65,8 +65,13 @@ public class ImapChecker implements Runnable {
                     settings.getProperty("filterfile")
             );
 
-            if(!settings.getProperty("openaikey", "").isEmpty()) {
-                cmcl.loadAI(settings.getProperty("openaikey"), settings.getProperty("assistantid"));
+            if(!settings.getProperty("anthropickey", "").isEmpty()) {
+                cmcl.loadAI(
+                        settings.getProperty("anthropickey"),
+                        settings.getProperty("claudemodel", "claude-sonnet-4-6"),
+                        settings.getProperty("claudeworkspace", ""),
+                        settings.getProperty("claudeprompt", "Summarize this email briefly.")
+                );
             }
 
             inbox.addMessageCountListener(cmcl);
